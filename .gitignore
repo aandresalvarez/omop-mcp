@@ -1,0 +1,64 @@
+# OS
+.DS_Store
+Thumbs.db
+Icon?
+.Spotlight-V100
+.Trashes
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Node / JS
+node_modules/
+dist/
+build/
+.next/
+out/
+.cache/
+.parcel-cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+.mypy_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.pyre/
+.ruff_cache/
+
+# Environments
+.env
+.env.*
+.venv
+venv/
+ENV/
+.envrc
+
+# Editors/IDE
+.vscode/
+.idea/
+*.iml
+
+# Databases
+db.sqlite3
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS cache
+.AppleDouble
+.LSOverride
+
