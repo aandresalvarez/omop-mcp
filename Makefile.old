@@ -1,0 +1,53 @@
+.PHONY: dev run http stdio test fmt lint type clean
+
+# Development setup
+dev:
+	pip install -e ".[dev]"
+
+# Install dependencies
+install:
+	pip install -e .
+
+# Run MCP server via HTTP
+http:
+	python -m omop_mcp.server --http --port 8000
+
+# Run MCP server via stdio
+stdio:
+	python -m omop_mcp.server --stdio
+
+# Run tests
+test:
+	pytest -v --maxfail=1
+
+# Run tests with coverage
+test-cov:
+	pytest --cov=omop_mcp --cov-report=html --cov-report=term
+
+# Format code
+fmt:
+	black src/ tests/
+	ruff check src/ tests/ --fix
+
+# Lint code
+lint:
+	ruff check src/ tests/
+
+# Type check
+type:
+	mypy src/
+
+# Clean build artifacts
+clean:
+	rm -rf build/
+	rm -rf dist/
+	rm -rf *.egg-info
+	rm -rf .pytest_cache/
+	rm -rf .mypy_cache/
+	rm -rf .ruff_cache/
+	rm -rf htmlcov/
+	find . -type d -name __pycache__ -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete
+
+# Run all checks
+check: lint type test
