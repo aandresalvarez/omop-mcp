@@ -5,6 +5,9 @@ Icon?
 .Spotlight-V100
 .Trashes
 
+# UV lock file (too large for git)
+uv.lock
+
 # Logs
 logs/
 *.log
