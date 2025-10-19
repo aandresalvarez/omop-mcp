@@ -57,7 +57,7 @@ def _search_athena_cached(
     Cached wrapper for ATHENA search.
     Returns JSON string for caching (since dicts aren't hashable).
     """
-    if not ATHENA_AVAILABLE:
+    if not ATHENA_AVAILABLE or AthenaClient is None:
         return json.dumps(
             {"success": False, "error": "athena-client not installed", "candidates": []}
         )
@@ -79,7 +79,7 @@ def _search_athena_cached(
                 continue
 
             # Standard mapping
-            if standard_only and concept.standardConcept != ConceptType.STANDARD:
+            if standard_only and ConceptType and concept.standardConcept != ConceptType.STANDARD:
                 mapped_ids = _map_to_standard_ids(client, int(concept.id))
                 for mid in mapped_ids:
                     try:
@@ -126,7 +126,7 @@ def _get_concept_details_cached(concept_ids_tuple: tuple) -> str:
     Cached wrapper for concept details.
     Returns JSON string for caching.
     """
-    if not ATHENA_AVAILABLE:
+    if not ATHENA_AVAILABLE or AthenaClient is None:
         return json.dumps(
             {"success": False, "error": "athena-client not installed", "concepts": []}
         )
@@ -206,7 +206,7 @@ def clear_cache():
 def _concept_to_dict(concept) -> dict[str, Any]:
     """Convert athena-client Concept/ConceptDetails to snake_case dict used in search results."""
     standard_concept = None
-    if hasattr(concept, "standardConcept") and concept.standardConcept:
+    if hasattr(concept, "standardConcept") and concept.standardConcept and ConceptType:
         if concept.standardConcept == ConceptType.STANDARD:
             standard_concept = "S"
         elif concept.standardConcept == ConceptType.CLASSIFICATION:
@@ -242,7 +242,7 @@ def _concept_to_camel_details(concept) -> dict[str, Any]:
     """Convert athena-client Concept/ConceptDetails to CamelCase keys expected by find_concepts."""
     # Map standardConcept to readable label for downstream (expects 'Standard' string)
     std_label = None
-    if hasattr(concept, "standardConcept") and concept.standardConcept:
+    if hasattr(concept, "standardConcept") and concept.standardConcept and ConceptType:
         if concept.standardConcept == ConceptType.STANDARD:
             std_label = "Standard"
         elif concept.standardConcept == ConceptType.CLASSIFICATION:
@@ -270,7 +270,7 @@ def _concept_to_camel_details(concept) -> dict[str, Any]:
     }
 
 
-def _map_to_standard_ids(client: AthenaClient, concept_id: int) -> list[int]:
+def _map_to_standard_ids(client: Any, concept_id: int) -> list[int]:  # type: ignore[misc]
     """Return standard concept_ids this concept maps to via 'Maps to'."""
     try:
         rels = client.relationships(concept_id)
@@ -350,11 +350,16 @@ def search_athena(
             # Apply vocabulary filter
             if vocabulary:
                 vocab_list = vocabulary if isinstance(vocabulary, list) else [vocabulary]
-                if concept.vocabulary not in vocab_list:
+                if hasattr(concept, "vocabulary") and concept.vocabulary not in vocab_list:
                     continue
 
             # If standard-only requested and this is non-standard, try to map to standard
-            if standard_only and concept.standardConcept != ConceptType.STANDARD:
+            if (
+                standard_only
+                and ConceptType
+                and hasattr(concept, "standardConcept")
+                and concept.standardConcept != ConceptType.STANDARD
+            ):
                 mapped_ids = _map_to_standard_ids(client, int(concept.id))
                 for mid in mapped_ids:
                     try:
@@ -439,7 +444,7 @@ def get_concept_relationships(ctx: RunContext[dict[str, Any]], concept_id: int) 
         get_concept_relationships(40481087)  # Non-standard concept
         # Returns: {"maps_to": [201826]}  # Standard SNOMED concept
     """
-    if not ATHENA_AVAILABLE:
+    if not ATHENA_AVAILABLE or AthenaClient is None:
         return {
             "success": False,
             "error": "athena-client not installed",
@@ -497,7 +502,7 @@ def get_concept_summary(ctx: RunContext[dict[str, Any]], concept_id: int) -> dic
             "summary": str or dict
         }
     """
-    if not ATHENA_AVAILABLE:
+    if not ATHENA_AVAILABLE or AthenaClient is None:
         return {
             "success": False,
             "error": "athena-client not installed",
@@ -534,7 +539,7 @@ def get_concept_graph(ctx: RunContext[dict[str, Any]], concept_id: int) -> dict[
             "descendants": [int]
         }
     """
-    if not ATHENA_AVAILABLE:
+    if not ATHENA_AVAILABLE or AthenaClient is None:
         return {
             "success": False,
             "error": "athena-client not installed",
@@ -592,7 +597,7 @@ def search_initial_candidates(
     Returns:
         Updated concept sets with initial candidates
     """
-    if not ATHENA_AVAILABLE:
+    if not ATHENA_AVAILABLE or AthenaClient is None:
         print("⚠️  Athena not available, skipping initial candidate search")
         return concept_sets
 
@@ -610,13 +615,18 @@ def search_initial_candidates(
                     # Filter by domain if specified
                     domain = concept_set.get("domain")
 
-                    for concept in results[:top_k]:  # Limit to top_k per query
+                    # Limit to top_k per query
+                    for concept in list(results)[:top_k] if hasattr(results, "__iter__") else []:
                         # Apply domain filter
-                        if domain and concept.domain != domain:
+                        if domain and hasattr(concept, "domain") and concept.domain != domain:
                             continue
 
                         # If non-standard, try to map to standard via relationships
-                        if concept.standardConcept != ConceptType.STANDARD:
+                        if (
+                            ConceptType
+                            and hasattr(concept, "standardConcept")
+                            and concept.standardConcept != ConceptType.STANDARD
+                        ):
                             mapped_ids = _map_to_standard_ids(client, int(concept.id))
                             for mid in mapped_ids:
                                 try:

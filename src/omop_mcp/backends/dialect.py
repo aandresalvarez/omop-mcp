@@ -7,8 +7,7 @@ This module provides utilities to translate SQL between different dialects
 import logging
 from typing import Any
 
-import sqlglot
-from sqlglot import exp, parse_one
+from sqlglot import exp, optimizer, parse_one
 from sqlglot.errors import ParseError
 
 logger = logging.getLogger(__name__)
@@ -222,8 +221,8 @@ def optimize_sql(sql: str, dialect: str = "bigquery") -> str:
     try:
         parsed = parse_one(sql, read=dialect_name)
 
-        # Apply optimizations
-        optimized = parsed.transform(sqlglot.optimizer.optimize)
+        # Apply optimizations using simplify
+        optimized = optimizer.simplify.simplify(parsed)
 
         result: str = optimized.sql(dialect=dialect_name, pretty=True)
         return result

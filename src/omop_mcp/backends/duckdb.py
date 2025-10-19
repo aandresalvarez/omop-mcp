@@ -25,12 +25,12 @@ class DuckDBBackend(Backend):
         """Initialize DuckDB backend."""
         self.database_path = config.duckdb_database_path
         self.schema = config.duckdb_schema
-        self._conn: Any = None  # type: ignore[assignment]
+        self._conn: Any = None
 
         logger.info(f"DuckDB backend initialized (database={self.database_path})")
 
-    def _get_connection(self) -> Any:  # type: ignore[return]
-        """Get or create DuckDB connection."""
+    def _get_connection(self) -> Any:
+        """Get or create DuckDB connection."""  # type: ignore[misc]
         if self._conn is None:
             self._conn = duckdb.connect(self.database_path)
             # Set schema if not default

@@ -106,6 +106,8 @@ class OAuthValidator:
 
         try:
             # Get signing key from JWKS
+            if self.jwks_client is None:
+                raise ValueError("JWKS client not initialized")
             signing_key = self.jwks_client.get_signing_key_from_jwt(token)
 
             # Decode and validate JWT

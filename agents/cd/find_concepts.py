@@ -34,6 +34,7 @@ from typing import Any, Literal
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
+from pydantic_ai.settings import ModelSettings
 
 # Import tools
 from tools import (
@@ -189,7 +190,7 @@ DECOMPOSER_MODEL = os.getenv("DECOMPOSER_MODEL", "gpt-5-mini")
 decomposer_agent = Agent(  # type: ignore[call-overload]
     f"openai:{DECOMPOSER_MODEL}",
     output_type=ConceptPlan,
-    model_settings={"reasoning": {"effort": "medium"}},
+    model_settings=ModelSettings(reasoning={"effort": "medium"}),  # type: ignore[arg-type]
     system_prompt="""
 You are an expert OMOP/ATLAS cohort designer.
 
@@ -226,7 +227,7 @@ AGGREGATOR_MODEL = os.getenv("AGGREGATOR_MODEL", "gpt-5-mini")
 candidate_aggregator_agent = Agent(  # type: ignore[call-overload]
     f"openai:{AGGREGATOR_MODEL}",
     output_type=CandidateSelection,
-    model_settings={"reasoning": {"effort": "medium"}},
+    model_settings=ModelSettings(reasoning={"effort": "medium"}),  # type: ignore[arg-type]
     system_prompt="""
 You are a meticulous OMOP concept scout. Review the Athena search payload
 and pick up to 12 promising candidate concept IDs.
@@ -259,7 +260,7 @@ Output JSON fields:
 concept_analyzer_agent = Agent(  # type: ignore[call-overload]
     "openai:gpt-5-mini",
     output_type=BatchAnalysis,
-    model_settings={"reasoning": {"effort": "medium"}},
+    model_settings=ModelSettings(reasoning={"effort": "medium"}),  # type: ignore[arg-type]
     system_prompt="""
 You are an OMOP domain expert evaluating candidate concepts in batches.
 
@@ -752,7 +753,7 @@ def _process_single_concept_set(
             # Phase 1: Smart vocabulary filtering by domain
             smart_vocab = DOMAIN_VOCAB_MAP.get(concept_set.domain, concept_set.vocabulary)
             search_result = search_athena(
-                ctx={},
+                ctx={},  # type: ignore[arg-type]
                 query=query,
                 domain=concept_set.domain,
                 vocabulary=smart_vocab if smart_vocab else concept_set.vocabulary,
@@ -838,7 +839,7 @@ def _process_single_concept_set(
         print(f"      Fetching details for {len(ids)} concepts (batched)...")
         all_details = {}
         try:
-            batch_details_result = get_concept_details(ctx={}, concept_ids=ids)
+            batch_details_result = get_concept_details(ctx={}, concept_ids=ids)  # type: ignore[arg-type]
             if batch_details_result.get("success"):
                 # Use conceptId (CamelCase) as returned by _get_concept_details_cached
                 all_details = {
@@ -854,14 +855,14 @@ def _process_single_concept_set(
             try:
                 details = all_details.get(cid, {})
                 if not details:
-                    details_result = get_concept_details(ctx={}, concept_ids=[cid])
+                    details_result = get_concept_details(ctx={}, concept_ids=[cid])  # type: ignore[arg-type]
                     details = (
                         details_result.get("concepts", [{}])[0]
                         if details_result.get("success")
                         else {}
                     )
 
-                relationships_result = get_concept_relationships(ctx={}, concept_id=cid)
+                relationships_result = get_concept_relationships(ctx={}, concept_id=cid)  # type: ignore[arg-type]
 
                 concept_data = {
                     "concept_id": cid,

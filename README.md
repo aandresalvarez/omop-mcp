@@ -980,6 +980,108 @@ uv run pytest -v
 
 ---
 
+## 👨‍💻 Development
+
+### Quick Start
+
+```bash
+# Clone and setup
+git clone https://github.com/aandresalvarez/omop-mcp.git
+cd omop-mcp
+
+# Install with all dev dependencies
+uv sync --extra dev
+
+# Run quality checks
+make check           # Format, lint, typecheck, test
+make check-all       # All checks + pylint + pyright + security
+```
+
+### Quality Tools
+
+This project uses comprehensive quality infrastructure for healthcare-grade code:
+
+#### **Code Quality**
+```bash
+make format          # Black + ruff auto-formatting
+make lint            # Ruff linting
+make pylint          # Strict linting
+make typecheck       # mypy type checking
+make pyright         # pyright type checking
+```
+
+#### **Security Scanning** 🔒
+```bash
+make security        # bandit (Python security) + pip-audit (vulnerabilities)
+make audit           # Comprehensive: security + safety dependency scan
+```
+
+#### **SQL Quality** (Critical for OMOP queries)
+```bash
+make sql-lint        # Lint SQL files with sqlfluff
+make sql-fix         # Auto-fix SQL formatting
+```
+
+#### **Testing & Coverage**
+```bash
+make test            # Run pytest
+make coverage        # Detailed coverage report (HTML + JSON + terminal)
+```
+
+### Available Make Targets
+
+```bash
+make help            # Show all available commands
+
+# Setup
+make dev             # Full development setup (venv + deps + tools)
+
+# Quality checks
+make check           # Standard checks (format, lint, typecheck, test)
+make check-all       # ALL checks including security
+make pre-commit      # Run pre-commit hooks
+
+# Security
+make security        # Security scans (bandit + pip-audit)
+make audit           # Full security audit (+ safety)
+
+# SQL
+make sql-lint        # Lint SQL with sqlfluff
+make sql-fix         # Auto-format SQL
+
+# Testing
+make test            # Run tests
+make coverage        # Generate coverage reports
+
+# Server
+make http            # Run MCP server (HTTP mode)
+make stdio           # Run MCP server (stdio mode)
+```
+
+### CI/CD
+
+GitHub Actions automatically runs on every push:
+- ✅ **Tests** (Python 3.11, 3.12)
+- ✅ **Code quality** (format, lint)
+- ✅ **Type checking** (mypy, pyright)
+- ✅ **Security scanning** (bandit, pip-audit, safety)
+- ✅ **SQL quality** (sqlfluff)
+- ✅ **Coverage reporting**
+
+See [`.github/workflows/quality.yml`](.github/workflows/quality.yml) for details.
+
+### Pre-commit Hooks
+
+Install git hooks for automatic quality checks:
+
+```bash
+make pre-commit-install
+```
+
+This runs formatting, linting, and type checking before each commit.
+
+---
+
 ## 🔧 Troubleshooting
 
 ### Common Issues

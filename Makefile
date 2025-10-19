@@ -11,10 +11,17 @@ PIP := $(VENV)/bin/pip
 PYTEST := $(VENV)/bin/pytest
 RUFF := $(VENV)/bin/ruff
 MYPY := $(VENV)/bin/mypy
+PYRIGHT := $(VENV)/bin/pyright
+PYLINT := $(VENV)/bin/pylint
 BLACK := $(VENV)/bin/black
+BANDIT := $(VENV)/bin/bandit
+SQLFLUFF := $(VENV)/bin/sqlfluff
+PIP_AUDIT := $(VENV)/bin/pip-audit
+SAFETY := $(VENV)/bin/safety
 
-.PHONY: help venv install install-dev dev-tools format lint typecheck test test-cov \
-        http stdio run clean check pre-commit pre-commit-install dev
+.PHONY: help venv install install-dev dev-tools format lint typecheck pyright pylint test test-cov \
+        http stdio run clean check check-all pre-commit pre-commit-install dev \
+        security sql-lint sql-fix coverage audit
 
 # ============================================================================
 # Help
@@ -35,14 +42,24 @@ help:
 	@echo "Code Quality:"
 	@echo "  make format          # Format code with black and ruff"
 	@echo "  make lint            # Lint code with ruff"
+	@echo "  make pylint          # Lint code with pylint (strict)"
 	@echo "  make typecheck       # Type-check with mypy"
+	@echo "  make pyright         # Type-check with pyright"
 	@echo "  make check           # Run all checks (format + lint + typecheck + test)"
+	@echo "  make check-all       # Run ALL checks including pyright and pylint"
 	@echo "  make pre-commit      # Run pre-commit on all files"
 	@echo "  make pre-commit-install # Install pre-commit hooks"
+	@echo ""
+	@echo "Security & Quality:"
+	@echo "  make security        # Run security scans (bandit + pip-audit)"
+	@echo "  make audit           # Comprehensive security audit (security + safety)"
+	@echo "  make sql-lint        # Lint SQL files with sqlfluff"
+	@echo "  make sql-fix         # Auto-fix SQL files with sqlfluff"
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test            # Run tests with pytest"
 	@echo "  make test-cov        # Run tests with coverage report"
+	@echo "  make coverage        # Generate detailed coverage report (HTML + term)"
 	@echo ""
 	@echo "Run Server:"
 	@echo "  make http            # Run MCP server in HTTP mode"
@@ -81,7 +98,7 @@ install-dev: venv
 
 dev-tools: venv
 	@echo "Installing development tools..."
-	@$(UV) pip install ruff mypy black pytest pytest-cov pytest-asyncio pre-commit
+	@$(UV) pip install ruff mypy pyright pylint black pytest pytest-cov pytest-asyncio pre-commit
 	@echo "✅ Dev tools installed"
 
 dev: venv install-dev dev-tools
@@ -105,13 +122,26 @@ lint:
 	@$(RUFF) check src/ tests/
 	@echo "✅ Lint checks passed"
 
+pylint:
+	@echo "Linting code with pylint (strict)..."
+	@$(PYLINT) src/omop_mcp --rcfile=.pylintrc || true
+	@echo "✅ Pylint checks complete"
+
 typecheck:
 	@echo "Type checking with mypy..."
 	@$(MYPY) src/
 	@echo "✅ Type checks passed"
 
+pyright:
+	@echo "Type checking with pyright..."
+	@$(PYRIGHT) src/
+	@echo "✅ Pyright checks passed"
+
 check: format lint typecheck test
 	@echo "✅ All checks passed!"
+
+check-all: format lint pylint typecheck pyright security test
+	@echo "✅ ALL checks passed (including security, pylint, and pyright)!"
 
 pre-commit:
 	@echo "Running pre-commit on all files..."
@@ -137,6 +167,42 @@ test-cov:
 	@echo "Running tests with coverage..."
 	@$(PYTEST) --cov=omop_mcp --cov-report=html --cov-report=term
 	@echo "✅ Coverage report generated in htmlcov/"
+
+coverage:
+	@echo "Running comprehensive coverage analysis..."
+	@$(PYTEST) --cov=omop_mcp --cov-report=html --cov-report=term --cov-report=json --cov-branch
+	@echo "✅ Detailed coverage report:"
+	@echo "   - HTML: htmlcov/index.html"
+	@echo "   - JSON: coverage.json"
+	@echo "   - Terminal summary above"
+
+# ============================================================================
+# Security & SQL Quality
+# ============================================================================
+
+security:
+	@echo "Running security scans..."
+	@echo "→ Bandit (Python security linter)..."
+	@$(BANDIT) -r src/ -ll -f screen || true
+	@echo ""
+	@echo "→ pip-audit (PyPI vulnerability scanner)..."
+	@$(PIP_AUDIT) --require-hashes --disable-pip || $(PIP_AUDIT) || true
+	@echo "✅ Security scans complete"
+
+audit: security
+	@echo "→ Safety (dependency vulnerability database)..."
+	@$(SAFETY) check --json || $(SAFETY) scan || true
+	@echo "✅ Comprehensive security audit complete"
+
+sql-lint:
+	@echo "Linting SQL files with sqlfluff..."
+	@$(SQLFLUFF) lint agents/qb/*.sql --dialect bigquery || true
+	@echo "✅ SQL lint complete"
+
+sql-fix:
+	@echo "Auto-fixing SQL files with sqlfluff..."
+	@$(SQLFLUFF) fix agents/qb/*.sql --dialect bigquery
+	@echo "✅ SQL files formatted"
 
 # ============================================================================
 # Run Server

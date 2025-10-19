@@ -311,7 +311,7 @@ async def query_omop(
         raise
 
 
-@mcp.tool(deferred=False)  # Set to True when implementing async approval workflow
+@mcp.tool()  # Remove deferred parameter as it's not supported
 async def generate_cohort_sql(
     ctx: Context,
     exposure_concept_ids: list[int],

@@ -15,7 +15,7 @@ dependencies = [
 
     # PydanticAI & Models
     "pydantic>=2.7",
-    "pydantic-ai>=0.0.13",
+    "pydantic-ai>=1.1.0",
     "pydantic-settings>=2.2",
 
     # ATHENA API Client (REQUIRED EXACT VERSION)
@@ -58,15 +58,41 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    # Testing
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "pytest-cov>=5.0",
     "pytest-mock>=3.12",
+    "hypothesis>=6.0",  # Property-based testing
+    "faker>=24.0",  # Test data generation
+
+    # Formatting & Linting
     "black>=24.0",
     "ruff>=0.6",
+    "pylint>=3.0",
+
+    # Type Checking
     "mypy>=1.10",
+    "pyright>=1.1.350",
+
+    # Security Scanning
+    "bandit[toml]>=1.7",  # Python security linter
+    "pip-audit>=2.7",  # PyPI vulnerability scanner
+    "safety>=3.0",  # Dependency vulnerability scanner
+
+    # SQL Quality (for OMOP/healthcare data)
+    "sqlfluff>=3.0",  # SQL linter and formatter
+
+    # Development
     "ipython>=8.0",
     "types-aiofiles",
+]
+
+observability = [
+    # Production observability
+    "prometheus-client>=0.20",  # Metrics export
+    "opentelemetry-api>=1.24",  # Optional: distributed tracing
+    "opentelemetry-sdk>=1.24",
 ]
 
 [build-system]
@@ -122,3 +148,45 @@ python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false  # Gradual typing
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", "htmlcov"]
+skips = [
+    "B101",  # assert_used - we use asserts in tests
+    "B601",  # paramiko_calls - not applicable
+]
+
+[tool.coverage.run]
+source = ["src/omop_mcp"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+]
+branch = true
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.sqlfluff.core]
+dialect = "bigquery"
+exclude_rules = ["L016"]  # Line too long (we handle with black)
+max_line_length = 100
+
+[tool.sqlfluff.indentation]
+indented_joins = true
+template_blocks_indent = true
