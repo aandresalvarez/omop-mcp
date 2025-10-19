@@ -30,6 +30,15 @@ dependencies = [
     # BigQuery
     "google-cloud-bigquery>=3.25.0",
 
+    # SQL Dialect Translation
+    "sqlglot>=25.0.0",
+
+    # Snowflake
+    "snowflake-connector-python>=3.12.0",
+
+    # DuckDB
+    "duckdb>=1.1.0",
+
     # Postgres (future)
     "psycopg[binary,pool]>=3.2",
     "asyncpg>=0.29",

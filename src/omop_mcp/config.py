@@ -22,6 +22,18 @@ class OMOPConfig(BaseSettings):
     bigquery_dataset_id: str | None = None
     bigquery_location: str = "US"
 
+    # Snowflake
+    snowflake_account: str | None = None
+    snowflake_user: str | None = None
+    snowflake_password: str | None = None
+    snowflake_database: str | None = None
+    snowflake_schema: str | None = None
+    snowflake_warehouse: str | None = None
+
+    # DuckDB
+    duckdb_database_path: str = ":memory:"  # Default to in-memory
+    duckdb_schema: str = "main"
+
     # Postgres
     postgres_dsn: str | None = None
     postgres_schema: str = "public"
