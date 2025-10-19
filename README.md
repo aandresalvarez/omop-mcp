@@ -202,10 +202,10 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY person_id ORDER BY exposure_date) = 1;
 4. Both return identical results from OMOP CDM data
 
 **Supported backends:**
-- ✅ **BigQuery** (full support, cost estimates)
-- ✅ **Postgres** (full support, EXPLAIN plans)
-- 🔜 **Snowflake** (planned)
-- 🔜 **DuckDB** (planned)
+- ✅ **BigQuery** (full support, cost estimates, dry-run validation)
+- ✅ **Snowflake** (full support, EXPLAIN validation, enterprise ready)
+- ✅ **DuckDB** (full support, local execution, zero setup, free!)
+- ✅ **Universal SQL Translation** (10+ dialects via SQLGlot)
 
 ---
 
@@ -284,6 +284,126 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY person_id ORDER BY exposure_date) = 1;
 
 ---
 
+## ✨ New Features
+
+### 🤖 AI-Powered Agents (PydanticAI)
+
+Natural language interface for OMOP queries with intelligent concept discovery and SQL generation:
+
+```python
+from omop_mcp.agents import ConceptDiscoveryAgent, SQLGenerationAgent
+
+# AI-powered concept discovery
+agent = ConceptDiscoveryAgent()
+result = await agent.run("Find all diabetes medications")
+# Returns structured list of drug concepts with confidence scores
+
+# AI-powered SQL generation
+sql_agent = SQLGenerationAgent()
+cohort_sql = await sql_agent.run(
+    "Patients on metformin who developed kidney problems within 90 days"
+)
+# Returns complete, validated cohort SQL
+```
+
+### 🗄️ Multi-Database Support
+
+Query OMOP CDM across different database platforms with automatic SQL translation:
+
+**DuckDB (Local Development):**
+```python
+from omop_mcp.backends import DuckDBBackend
+
+# Zero setup - works immediately!
+backend = DuckDBBackend()  # In-memory by default
+results = await backend.execute_query("SELECT COUNT(*) FROM person")
+# Fast, free, local execution - perfect for development!
+```
+
+**Snowflake (Enterprise):**
+```python
+from omop_mcp.backends import SnowflakeBackend
+
+# Enterprise cloud data warehouse
+backend = SnowflakeBackend()
+parts = await backend.build_cohort_sql(
+    exposure_ids=[1234],
+    outcome_ids=[5678],
+    pre_outcome_days=30
+)
+# Production-ready with EXPLAIN validation
+```
+
+**BigQuery (Cloud-Scale):**
+```python
+from omop_mcp.backends import BigQueryBackend
+
+# Google Cloud Platform
+backend = BigQueryBackend()
+validation = await backend.validate_sql(sql)  # Dry-run with cost estimate
+```
+
+### 🔄 Universal SQL Translation
+
+Translate queries between 10+ SQL dialects automatically:
+
+```python
+from omop_mcp.backends import translate_sql
+
+# Translate BigQuery SQL to Snowflake
+bigquery_sql = "SELECT DATE_DIFF(end_date, start_date, DAY) FROM visits"
+snowflake_sql = translate_sql(bigquery_sql, "bigquery", "snowflake")
+# Result: "SELECT DATEDIFF(DAY, start_date, end_date) FROM visits"
+
+# Translate to DuckDB
+duckdb_sql = translate_sql(bigquery_sql, "bigquery", "duckdb")
+# Result: "SELECT date_diff('day', start_date, end_date) FROM visits"
+```
+
+**Supported Dialects:**
+- BigQuery, Snowflake, DuckDB
+- PostgreSQL, MySQL, SQLite
+- Redshift, Spark, Trino, Presto
+
+### 📊 Data Export Tools
+
+Export OMOP data in standardized formats:
+
+```python
+from omop_mcp.tools.export import (
+    export_concept_set,
+    export_sql_query,
+    export_query_results,
+    export_cohort_definition
+)
+
+# Export concept set to CSV
+await export_concept_set(
+    concepts=concept_list,
+    format="csv",
+    output_path="diabetes_concepts.csv"
+)
+
+# Export SQL query with metadata
+await export_sql_query(
+    sql=cohort_sql,
+    metadata={"description": "Diabetes cohort", "author": "researcher"},
+    output_path="cohort_query.json"
+)
+
+# Export query results
+await export_query_results(
+    results=query_results,
+    format="json",
+    output_path="cohort_results.json",
+    include_metadata=True
+)
+```
+
+**Supported Formats:** JSON, CSV with automatic type handling
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -310,20 +430,24 @@ Create a `.env` file or set environment variables:
 
 ```bash
 # Required: Database backend
-BACKEND_TYPE=bigquery  # or "postgres"
+BACKEND_TYPE=bigquery  # or "snowflake" or "duckdb"
 
 # For BigQuery
 BIGQUERY_PROJECT_ID=your-gcp-project
 BIGQUERY_DATASET_ID=omop_cdm
 BIGQUERY_CREDENTIALS_PATH=/path/to/service-account.json
 
-# For Postgres
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=omop
-POSTGRES_USER=omop_user
-POSTGRES_PASSWORD=your_password
-POSTGRES_SCHEMA=cdm
+# For Snowflake
+SNOWFLAKE_ACCOUNT=your-account.snowflakecomputing.com
+SNOWFLAKE_USER=your_username
+SNOWFLAKE_PASSWORD=your_password
+SNOWFLAKE_DATABASE=omop_db
+SNOWFLAKE_SCHEMA=cdm
+SNOWFLAKE_WAREHOUSE=compute_wh
+
+# For DuckDB (local/embedded - no credentials needed!)
+DUCKDB_DATABASE_PATH=:memory:  # or "./omop.duckdb" for persistent
+DUCKDB_SCHEMA=main
 
 # Optional: Security
 MAX_COST_USD=1.0          # Cost limit for BigQuery queries
@@ -409,7 +533,7 @@ BACKEND_TYPE=postgres uv run python -m omop_mcp.server
 
 ## 🛠️ Available MCP Tools
 
-### Tools
+### Core Tools
 
 | Tool | Purpose | Input Parameters | Returns |
 |------|---------|------------------|---------|
@@ -417,6 +541,30 @@ BACKEND_TYPE=postgres uv run python -m omop_mcp.server
 | `get_concept_relationships` | Explore concept hierarchies | `concept_id`, `relationship_id` | List of `ConceptRelationship` |
 | `query_by_concepts` | Execute analytical queries | `query_type`, `concept_ids`, `domain`, `backend`, `execute` | `QueryOMOPResult` |
 | `generate_cohort_sql` | Create temporal cohort queries | `exposure_ids`, `outcome_ids`, `time_window`, `dialect` | SQL string |
+
+### Export Tools (New! 🎉)
+
+| Tool | Purpose | Input Parameters | Returns |
+|------|---------|------------------|---------|
+| `export_concept_set` | Export concepts to JSON/CSV | `concepts`, `format`, `output_path` | Saved file path |
+| `export_sql_query` | Export SQL with metadata | `sql`, `metadata`, `output_path` | Saved file path |
+| `export_query_results` | Export results to JSON/CSV | `results`, `format`, `output_path`, `include_metadata` | Saved file path |
+| `export_cohort_definition` | Export complete cohort definition | `definition`, `output_path` | Saved file path |
+
+### SQL Tools (New! 🎉)
+
+| Tool | Purpose | Input Parameters | Returns |
+|------|---------|------------------|---------|
+| `translate_sql` | Cross-dialect SQL translation | `sql`, `source_dialect`, `target_dialect` | Translated SQL |
+| `validate_sql` | Validate SQL syntax | `sql`, `dialect` | Validation result |
+| `format_sql` | Pretty-print SQL | `sql`, `dialect`, `pretty` | Formatted SQL |
+
+### AI Agent Tools (New! 🤖)
+
+| Tool | Purpose | Input Parameters | Returns |
+|------|---------|------------------|---------|
+| `concept_discovery_agent` | AI-powered concept search | `question`, `domains` | Structured concept list |
+| `sql_generation_agent` | AI-powered SQL generation | `description`, `exposure`, `outcome` | Complete cohort SQL |
 
 ### Resources (Cacheable Data)
 
@@ -664,6 +812,103 @@ print(prompt["messages"][0]["content"]["text"])
 # Returns detailed prompt with SQL template, best practices, and examples
 ```
 
+### Example 8: Local Development with DuckDB (New! 🎉)
+
+```python
+from omop_mcp.backends import DuckDBBackend, translate_query
+
+# Step 1: Develop and test locally with DuckDB (FREE!)
+duckdb_backend = DuckDBBackend()  # Zero setup required!
+
+# Build cohort SQL
+parts = await duckdb_backend.build_cohort_sql(
+    exposure_ids=[1503297],  # Metformin
+    outcome_ids=[46271022],  # Acute kidney injury
+    pre_outcome_days=90
+)
+
+# Test locally (instant, free)
+local_results = await duckdb_backend.execute_query(
+    parts.to_sql(),
+    limit=10
+)
+print(f"✅ Found {len(local_results)} matching records locally")
+
+# Step 2: Translate to production database
+bigquery_sql = translate_query(parts.to_sql(), "duckdb", "bigquery")
+snowflake_sql = translate_query(parts.to_sql(), "duckdb", "snowflake")
+
+# Step 3: Run on production (after local validation)
+from omop_mcp.backends import BigQueryBackend
+bigquery_backend = BigQueryBackend()
+validation = await bigquery_backend.validate_sql(bigquery_sql)
+print(f"💰 Estimated cost: ${validation.estimated_cost_usd:.2f}")
+
+if validation.estimated_cost_usd < 1.0:
+    prod_results = await bigquery_backend.execute_query(bigquery_sql)
+    print(f"🚀 Production results: {len(prod_results)} records")
+```
+
+**Why this workflow?**
+- 🆓 **Free local testing** - No cloud costs during development
+- ⚡ **Instant iteration** - Test changes in milliseconds
+- ✅ **Validate before deploy** - Catch errors locally
+- 💰 **Cost-conscious** - Only pay for production queries
+- 🔄 **Cross-platform** - Same SQL works on BigQuery, Snowflake, DuckDB
+
+### Example 9: AI-Powered Concept Discovery (New! 🤖)
+
+```python
+from omop_mcp.agents import ConceptDiscoveryAgent
+
+# Initialize AI agent
+agent = ConceptDiscoveryAgent()
+
+# Natural language concept search
+result = await agent.run(
+    "Find all concepts related to type 2 diabetes and its complications"
+)
+
+print(f"Found {len(result.concepts)} concepts:")
+for concept in result.concepts[:5]:
+    print(f"  - {concept.concept_name} ({concept.concept_id})")
+    print(f"    Domain: {concept.domain_id}, Confidence: {concept.confidence}")
+
+# Agent automatically:
+# - Understands medical context
+# - Searches multiple domains
+# - Filters for relevance
+# - Returns structured results
+```
+
+### Example 10: AI-Powered SQL Generation (New! 🤖)
+
+```python
+from omop_mcp.agents import SQLGenerationAgent
+
+# Initialize SQL agent
+agent = SQLGenerationAgent()
+
+# Generate cohort SQL from natural language
+result = await agent.run(
+    description="Patients on metformin who developed acute kidney injury within 90 days",
+    exposure="metformin",
+    outcome="acute kidney injury"
+)
+
+print("Generated SQL:")
+print(result.sql)
+print(f"\nExposure concepts: {result.exposure_ids}")
+print(f"Outcome concepts: {result.outcome_ids}")
+print(f"Validation: {'✅ Valid' if result.validation.valid else '❌ Invalid'}")
+
+# Agent automatically:
+# - Discovers relevant concepts
+# - Generates cohort SQL
+# - Validates syntax
+# - Returns complete, executable query
+```
+
 ---
 
 ## 📊 Example Workflow
@@ -722,9 +967,16 @@ uv run pytest tests/test_query_security.py  # Security guards
 uv run pytest -v
 ```
 
-**Test Coverage:** 58 tests, 100% passing
-- Unit tests: 52 (models, backends, tools, resources, prompts)
-- Integration tests: 6 (E2E discover→query workflows)
+**Test Coverage:** 173 tests, 100% passing ✅
+- Unit tests: 161 (models, backends, tools, resources, prompts, agents, export, sqlgen, dialect)
+- Integration tests: 12 (E2E discover→query workflows, multi-backend, cross-dialect translation)
+- Coverage areas:
+  - ✅ Core OMOP tools (athena, query, sqlgen)
+  - ✅ AI agents (concept discovery, SQL generation)
+  - ✅ Export tools (JSON, CSV, all data types)
+  - ✅ Multi-backend (BigQuery, Snowflake, DuckDB)
+  - ✅ SQL translation (10+ dialects)
+  - ✅ Security & validation
 
 ---
 
@@ -736,7 +988,8 @@ uv run pytest -v
 ```bash
 # Solution: Install backend dependencies
 uv pip install google-cloud-bigquery
-# Or set BACKEND_TYPE=postgres
+# Or use DuckDB for local development (no setup required!)
+export BACKEND_TYPE=duckdb
 ```
 
 **Problem:** "ATHENA API timeout"
@@ -781,13 +1034,33 @@ structlog.configure(
 
 **Check backend connectivity:**
 ```python
-from omop_mcp.backends.registry import list_backends, get_backend
+from omop_mcp.backends.registry import list_backends, get_backend, get_supported_dialects
 
+# List all registered backends
 backends = list_backends()
-print(f"Available: {backends}")
+print(f"Available backends: {backends}")
 
-backend = get_backend("bigquery")
-print(f"Connected: {backend.name}")
+# Check supported SQL dialects
+dialects = get_supported_dialects()
+print(f"Supported dialects: {dialects}")
+
+# Get specific backend
+backend = get_backend("duckdb")  # or "bigquery" or "snowflake"
+print(f"Connected to: {backend.name} (dialect: {backend.dialect})")
+```
+
+**Test SQL translation:**
+```python
+from omop_mcp.backends import translate_sql, validate_sql
+
+# Translate SQL between dialects
+bigquery_sql = "SELECT DATE_DIFF(end_date, start_date, DAY) FROM visits"
+snowflake_sql = translate_sql(bigquery_sql, "bigquery", "snowflake")
+print(f"Translated SQL: {snowflake_sql}")
+
+# Validate SQL for specific dialect
+is_valid, error = validate_sql(snowflake_sql, "snowflake")
+print(f"Valid: {is_valid}, Error: {error}")
 ```
 
 **Validate SQL without execution:**
@@ -807,12 +1080,56 @@ print(f"Cost: ${result.estimated_cost_usd}")
 
 ## 🚀 Performance Tips
 
+### General Tips
 1. **Use MCP Resources for caching**: Resources are cached by MCP clients
 2. **Batch concept lookups**: Search once, query multiple times
 3. **Start with execute=False**: Validate SQL and cost before running
 4. **Use standard_only=True**: Reduces search result size
 5. **Set appropriate limits**: Default is 50 concepts, increase if needed
-6. **Enable query result caching**: BigQuery caches results for 24 hours
+
+### Backend-Specific Tips
+
+**DuckDB (Local Development):**
+- ✅ **Instant startup**: In-memory mode (`:memory:`) is fastest
+- ✅ **Free testing**: No cloud costs, iterate rapidly
+- ✅ **File-based persistence**: Use `./omop.duckdb` for persistent storage
+- ✅ **Import Parquet**: DuckDB can query Parquet files directly
+- ⚡ **Performance**: ~1-10GB datasets run in seconds
+
+**BigQuery (Cloud-Scale):**
+- 💰 **Enable query result caching**: Results cached for 24 hours (free!)
+- 📊 **Partition tables**: Use partitioned OMOP tables for cost reduction
+- 🔍 **Use dry-run first**: Check cost before execution
+- 💵 **Monitor costs**: Set `MAX_COST_USD` to prevent expensive queries
+- ⚡ **Performance**: Scales to petabytes
+
+**Snowflake (Enterprise):**
+- ❄️ **Use warehouse sizes appropriately**: Start with X-Small for dev
+- 🔄 **Enable result cache**: Snowflake caches identical queries
+- 📈 **Scale compute**: Adjust warehouse size based on query complexity
+- 💰 **Suspend warehouses**: Auto-suspend after 5 minutes of inactivity
+- ⚡ **Performance**: Excellent for complex analytics
+
+### Local → Production Workflow
+```python
+# 1. Develop locally with DuckDB (free, fast)
+duckdb_backend = DuckDBBackend()
+local_results = await duckdb_backend.execute_query(sql, limit=10)
+
+# 2. Translate to production dialect
+prod_sql = translate_sql(sql, "duckdb", "bigquery")
+
+# 3. Validate cost before production run
+bigquery_backend = BigQueryBackend()
+validation = await bigquery_backend.validate_sql(prod_sql)
+print(f"Cost: ${validation.estimated_cost_usd:.2f}")
+
+# 4. Execute on production if cost acceptable
+if validation.estimated_cost_usd < 1.0:
+    prod_results = await bigquery_backend.execute_query(prod_sql)
+```
+
+**This workflow saves money and time by validating locally first!**
 
 ---
 
@@ -829,12 +1146,26 @@ print(f"Cost: ${result.estimated_cost_usd}")
 
 ## 🔗 Resources
 
+### Official Documentation
 - [OMOP Common Data Model](https://ohdsi.github.io/CommonDataModel/)
 - [ATHENA Vocabulary Browser](https://athena.ohdsi.org)
 - [Model Context Protocol](https://modelcontextprotocol.io)
+
+### Project Documentation
 - [Implementation Plan](./plan/plan.md)
 - [Development Progress](./WEEK2_PROGRESS.md)
 - [Integration Tests](./INTEGRATION_TESTS_COMPLETE.md)
+
+### Feature Documentation
+- [SQL Generation Module](./SQLGEN_EXTRACTION_COMPLETE.md)
+- [PydanticAI Agents](./PYDANTIC_AI_AGENTS_COMPLETE.md)
+- [Export Tools](./EXPORT_TOOLS_COMPLETE.md)
+- [Additional Backends](./ADDITIONAL_BACKENDS_COMPLETE.md)
+- [Optional Enhancements Summary](./OPTIONAL_ENHANCEMENTS_COMPLETE.md)
+
+### Agent Documentation
+- [Concept Discovery Agent](./agents/cd/README.md)
+- [Query Builder Agent](./agents/qb/README.md)
 
 ---
 
