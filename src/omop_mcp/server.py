@@ -9,6 +9,7 @@ from typing import Any
 import structlog
 from mcp.server.fastmcp import Context, FastMCP
 
+from omop_mcp import resources
 from omop_mcp.config import config
 from omop_mcp.models import (
     CohortSQLResult,
@@ -428,6 +429,64 @@ async def generate_cohort_sql(
             exc_info=True,
         )
         raise
+
+
+# ============================================================================
+# MCP Resources
+# ============================================================================
+
+
+@mcp.resource("omop://concept/{concept_id}")
+async def get_concept(concept_id: int) -> str:
+    """
+    Get concept details by ID (cacheable).
+
+    Returns JSON with concept details from ATHENA API.
+    """
+    result = await resources.get_concept_resource(concept_id)
+    import json
+
+    return json.dumps(result, indent=2)
+
+
+@mcp.resource("athena://search")
+async def search_concepts(
+    query: str,
+    cursor: str | None = None,
+    page_size: int = 50,
+    domain: str | None = None,
+    vocabulary: str | None = None,
+    standard_only: bool = True,
+) -> str:
+    """
+    Paginated concept search.
+
+    Returns JSON with concepts and next_cursor for pagination.
+    """
+    result = await resources.search_concepts_resource(
+        query=query,
+        cursor=cursor,
+        page_size=page_size,
+        domain=domain,
+        vocabulary=vocabulary,
+        standard_only=standard_only,
+    )
+    import json
+
+    return json.dumps(result, indent=2)
+
+
+@mcp.resource("backend://capabilities")
+async def backend_capabilities() -> str:
+    """
+    List available backends and their capabilities.
+
+    Returns JSON with backend information.
+    """
+    result = await resources.get_backend_capabilities()
+    import json
+
+    return json.dumps(result, indent=2)
 
 
 # ============================================================================
