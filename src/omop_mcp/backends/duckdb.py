@@ -97,7 +97,7 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY person_id ORDER BY exposure_date) = 1"""
             with self._get_connection() as conn:
                 # Use EXPLAIN to validate without executing
                 _ = conn.execute(f"EXPLAIN {sql}").fetchall()  # Consume result
-                return SQLValidationResult(valid=True)
+                return SQLValidationResult(valid=True, estimated_cost_usd=0.0)
         except Exception as e:
             return SQLValidationResult(valid=False, error_message=str(e))
 
