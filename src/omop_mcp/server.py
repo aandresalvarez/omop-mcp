@@ -9,7 +9,7 @@ from typing import Any
 import structlog
 from mcp.server.fastmcp import Context, FastMCP
 
-from omop_mcp import resources
+from omop_mcp import prompts, resources
 from omop_mcp.config import config
 from omop_mcp.models import (
     CohortSQLResult,
@@ -487,6 +487,75 @@ async def backend_capabilities() -> str:
     import json
 
     return json.dumps(result, indent=2)
+
+
+# ============================================================================
+# MCP Prompts
+# ============================================================================
+
+
+@mcp.prompt()
+async def cohort_sql_template(
+    exposure_concepts: list[dict[str, Any]],
+    outcome_concepts: list[dict[str, Any]],
+    time_window_days: int,
+    backend_dialect: str = "bigquery",
+) -> str:
+    """
+    Template for cohort SQL generation.
+
+    Provides AI-ready prompt for generating OMOP CDM cohort identification SQL.
+    """
+    result = await prompts.get_prompt(
+        "cohort/sql",
+        {
+            "exposure_concepts": exposure_concepts,
+            "outcome_concepts": outcome_concepts,
+            "time_window_days": time_window_days,
+            "backend_dialect": backend_dialect,
+        },
+    )
+    return str(result["content"])
+
+
+@mcp.prompt()
+async def analysis_discovery_workflow(
+    clinical_question: str,
+    domains: list[str] | None = None,
+) -> str:
+    """
+    Template for systematic concept discovery.
+
+    Guides users through discovering OMOP concepts for clinical research questions.
+    """
+    result = await prompts.get_prompt(
+        "analysis/discovery",
+        {
+            "clinical_question": clinical_question,
+            "domains": domains,
+        },
+    )
+    return str(result["content"])
+
+
+@mcp.prompt()
+async def multi_step_query_workflow(
+    concept_ids: list[int],
+    domain: str,
+) -> str:
+    """
+    Template for cost-aware query execution.
+
+    Guides users through multi-step query workflow with cost estimation.
+    """
+    result = await prompts.get_prompt(
+        "query/multi-step",
+        {
+            "concept_ids": concept_ids,
+            "domain": domain,
+        },
+    )
+    return str(result["content"])
 
 
 # ============================================================================
