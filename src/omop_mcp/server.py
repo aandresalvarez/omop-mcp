@@ -12,7 +12,6 @@ from mcp.server.fastmcp import Context, FastMCP
 from omop_mcp import prompts, resources
 from omop_mcp.config import config
 from omop_mcp.models import (
-    CohortSQLResult,
     ConceptDiscoveryResult,
     QueryOMOPResult,
 )
@@ -373,33 +372,15 @@ async def generate_cohort_sql(
     )
 
     try:
-        from omop_mcp.backends.registry import get_backend
+        # Use dedicated sqlgen module
+        from omop_mcp.tools.sqlgen import generate_cohort_sql as generate_sql
 
-        backend_impl = get_backend(backend)
-
-        # Build SQL using backend
-        cohort_parts = await backend_impl.build_cohort_sql(
-            exposure_ids=exposure_concept_ids,
-            outcome_ids=outcome_concept_ids,
-            pre_outcome_days=pre_outcome_days,
-        )
-
-        sql = cohort_parts.to_sql()
-
-        # Validate if requested
-        validation_result = None
-        if validate:
-            validation_result = await backend_impl.validate_sql(sql)
-
-        result = CohortSQLResult(
-            sql=sql,
-            validation=validation_result,
-            concept_counts={
-                "exposure": len(exposure_concept_ids),
-                "outcome": len(outcome_concept_ids),
-            },
-            backend=backend_impl.name,
-            dialect=backend_impl.dialect,
+        result = await generate_sql(
+            exposure_concept_ids=exposure_concept_ids,
+            outcome_concept_ids=outcome_concept_ids,
+            time_window_days=pre_outcome_days,
+            backend=backend,
+            validate=validate,
         )
 
         response = {
@@ -416,7 +397,7 @@ async def generate_cohort_sql(
             "generate_cohort_sql_success",
             backend=backend,
             is_valid=result.is_valid,
-            sql_length=len(sql),
+            sql_length=len(result.sql),
         )
 
         return response
