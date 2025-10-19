@@ -36,8 +36,7 @@ class TestGenerateCohortSQL:
         # Mock validation
         mock_validation = SQLValidationResult(
             valid=True,
-            error=None,
-            rows_scanned=1000,
+            error_message=None,
             estimated_cost_usd=0.01,
         )
         mock_backend.validate_sql = AsyncMock(return_value=mock_validation)
@@ -111,7 +110,9 @@ class TestGenerateCohortSQL:
             )
 
         assert result.is_valid is False
+        assert result.validation is not None
         assert result.validation.valid is False
+        assert result.validation.error_message is not None
         assert "Table not found" in result.validation.error_message
 
     @pytest.mark.asyncio
@@ -144,8 +145,7 @@ class TestGenerateSimpleQuery:
 
         mock_validation = SQLValidationResult(
             valid=True,
-            error=None,
-            rows_scanned=1000,
+            error_message=None,
             estimated_cost_usd=0.01,
         )
         mock_backend.validate_sql = AsyncMock(return_value=mock_validation)
@@ -319,12 +319,14 @@ class TestValidateConceptIds:
         """Test validation with non-integer values."""
         is_valid, error = validate_concept_ids([1234, "5678"])  # type: ignore
         assert is_valid is False
+        assert error is not None
         assert "integers" in error
 
     def test_validate_concept_ids_negative(self):
         """Test validation with negative values."""
         is_valid, error = validate_concept_ids([1234, -5678, 9012])
         assert is_valid is False
+        assert error is not None
         assert "positive" in error
 
     def test_validate_concept_ids_too_many(self):
@@ -332,4 +334,5 @@ class TestValidateConceptIds:
         concept_ids = list(range(1, 1002))  # 1001 valid IDs
         is_valid, error = validate_concept_ids(concept_ids)
         assert is_valid is False
+        assert error is not None
         assert "1000" in error

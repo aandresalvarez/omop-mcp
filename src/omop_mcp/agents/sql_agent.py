@@ -79,6 +79,7 @@ class SQLGenerationAgent:
             model=self.model,
             output_type=SQLGenerationResult,
             system_prompt=self._get_system_prompt(),
+            deps_type=SQLGenerationRequest,
         )
 
         # Register SQL generation tools
@@ -294,11 +295,11 @@ Analyze the question and generate appropriate SQL.""",
             logger.info(
                 "generate_sql_success",
                 research_question=research_question,
-                query_type=result.data.query_type,
-                is_valid=result.data.is_valid,
+                query_type=result.output.query_type,
+                is_valid=result.output.is_valid,
             )
 
-            return SQLGenerationResult(**result.data.model_dump())
+            return SQLGenerationResult(**result.output.model_dump())
 
         except Exception as e:
             logger.error(
@@ -365,7 +366,7 @@ Provide:
 
             logger.info("optimize_sql_success", original_length=len(sql))
 
-            return SQLGenerationResult(**result.data.model_dump())
+            return SQLGenerationResult(**result.output.model_dump())
 
         except Exception as e:
             logger.error("optimize_sql_failed", error=str(e), exc_info=True)

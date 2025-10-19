@@ -22,22 +22,24 @@ class TestConceptDiscoveryAgent:
         """Create mock OMOP concepts for testing."""
         return [
             OMOPConcept(
-                concept_id=201826,
-                concept_name="Type 2 diabetes mellitus",
-                domain_id="Condition",
-                vocabulary_id="SNOMED",
-                concept_class_id="Clinical Finding",
-                standard_concept="S",
-                concept_code="44054006",
+                id=201826,
+                name="Type 2 diabetes mellitus",
+                domain="Condition",
+                vocabulary="SNOMED",
+                className="Clinical Finding",
+                standardConcept="S",
+                code="44054006",
+                invalidReason=None,
             ),
             OMOPConcept(
-                concept_id=201254,
-                concept_name="Diabetes mellitus",
-                domain_id="Condition",
-                vocabulary_id="SNOMED",
-                concept_class_id="Clinical Finding",
-                standard_concept="S",
-                concept_code="73211009",
+                id=201254,
+                name="Diabetes mellitus",
+                domain="Condition",
+                vocabulary="SNOMED",
+                className="Clinical Finding",
+                standardConcept="S",
+                code="73211009",
+                invalidReason=None,
             ),
         ]
 
@@ -47,8 +49,6 @@ class TestConceptDiscoveryAgent:
         return ConceptDiscoveryResult(
             query="diabetes",
             concepts=mock_concepts,
-            total_results=2,
-            standard_concepts=2,
         )
 
     def test_agent_initialization(self):
@@ -77,7 +77,7 @@ class TestConceptDiscoveryAgent:
             )
 
             with patch.object(agent.agent, "run", new_callable=AsyncMock) as mock_run:
-                mock_run.return_value = MagicMock(data=mock_result)
+                mock_run.return_value = MagicMock(output=mock_result)
 
                 result = await agent.find_concepts("diabetes", domain="Condition", max_results=10)
 
@@ -102,7 +102,7 @@ class TestConceptDiscoveryAgent:
             )
 
             with patch.object(agent.agent, "run", new_callable=AsyncMock) as mock_run:
-                mock_run.return_value = MagicMock(data=mock_result)
+                mock_run.return_value = MagicMock(output=mock_result)
 
                 result = await agent.find_concepts("diabetes", domain=None)
 
@@ -125,7 +125,7 @@ class TestConceptDiscoveryAgent:
         )
 
         with patch.object(agent.agent, "run", new_callable=AsyncMock) as mock_run:
-            mock_run.return_value = MagicMock(data=refined_result)
+            mock_run.return_value = MagicMock(output=refined_result)
 
             result = await agent.refine_concepts(
                 mock_concepts, "only type 2 diabetes, exclude type 1"
@@ -174,7 +174,7 @@ class TestSQLGenerationAgent:
         )
 
         with patch.object(agent.agent, "run", new_callable=AsyncMock) as mock_run:
-            mock_run.return_value = MagicMock(data=mock_result)
+            mock_run.return_value = MagicMock(output=mock_result)
 
             result = await agent.generate_sql(
                 research_question="Find patients with statin exposure and myopathy outcome",
@@ -205,7 +205,7 @@ class TestSQLGenerationAgent:
         )
 
         with patch.object(agent.agent, "run", new_callable=AsyncMock) as mock_run:
-            mock_run.return_value = MagicMock(data=mock_result)
+            mock_run.return_value = MagicMock(output=mock_result)
 
             result = await agent.generate_sql(
                 research_question="How many patients have diabetes?",
@@ -234,7 +234,7 @@ class TestSQLGenerationAgent:
         )
 
         with patch.object(agent.agent, "run", new_callable=AsyncMock) as mock_run:
-            mock_run.return_value = MagicMock(data=mock_result)
+            mock_run.return_value = MagicMock(output=mock_result)
 
             result = await agent.optimize_sql(
                 original_sql,
@@ -262,7 +262,7 @@ class TestSQLGenerationAgent:
         )
 
         with patch.object(agent.agent, "run", new_callable=AsyncMock) as mock_run:
-            mock_run.return_value = MagicMock(data=mock_result)
+            mock_run.return_value = MagicMock(output=mock_result)
 
             result = await agent.generate_sql(
                 research_question="test query",
@@ -298,30 +298,30 @@ class TestAgentIntegration:
         # Create mock data
         mock_concepts = [
             OMOPConcept(
-                concept_id=201826,
-                concept_name="Type 2 diabetes mellitus",
-                domain_id="Condition",
-                vocabulary_id="SNOMED",
-                concept_class_id="Clinical Finding",
-                standard_concept="S",
-                concept_code="44054006",
+                id=201826,
+                name="Type 2 diabetes mellitus",
+                domain="Condition",
+                vocabulary="SNOMED",
+                className="Clinical Finding",
+                standardConcept="S",
+                code="44054006",
+                invalidReason=None,
             ),
             OMOPConcept(
-                concept_id=201254,
-                concept_name="Diabetes mellitus",
-                domain_id="Condition",
-                vocabulary_id="SNOMED",
-                concept_class_id="Clinical Finding",
-                standard_concept="S",
-                concept_code="73211009",
+                id=201254,
+                name="Diabetes mellitus",
+                domain="Condition",
+                vocabulary="SNOMED",
+                className="Clinical Finding",
+                standardConcept="S",
+                code="73211009",
+                invalidReason=None,
             ),
         ]
 
         mock_discovery_result = ConceptDiscoveryResult(
             query="diabetes",
             concepts=mock_concepts,
-            total_results=2,
-            standard_concepts=2,
         )
 
         # Step 1: Discover concepts
@@ -340,7 +340,7 @@ class TestAgentIntegration:
             with patch.object(
                 concept_agent.agent, "run", new_callable=AsyncMock
             ) as mock_concept_run:
-                mock_concept_run.return_value = MagicMock(data=concept_result)
+                mock_concept_run.return_value = MagicMock(output=concept_result)
 
                 concepts = await concept_agent.find_concepts("diabetes")
 
@@ -357,7 +357,7 @@ class TestAgentIntegration:
                 )
 
                 with patch.object(sql_agent.agent, "run", new_callable=AsyncMock) as mock_sql_run:
-                    mock_sql_run.return_value = MagicMock(data=sql_result)
+                    mock_sql_run.return_value = MagicMock(output=sql_result)
 
                     sql = await sql_agent.generate_sql(
                         research_question="Count diabetes patients",

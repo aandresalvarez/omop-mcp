@@ -101,6 +101,7 @@ class TestOMOPConcept:
             className="Clinical Finding",
             standardConcept="S",
             code="44054006",
+            invalidReason=None,
         )
 
         # Should be accessible via canonical snake_case names
@@ -141,6 +142,7 @@ class TestConceptDiscoveryResult:
                 className="Clinical Finding",
                 standardConcept="S",
                 code="123",
+                invalidReason=None,
             ),
             OMOPConcept(
                 id=2,
@@ -150,6 +152,7 @@ class TestConceptDiscoveryResult:
                 className="Clinical Finding",
                 standardConcept=None,
                 code="456",
+                invalidReason=None,
             ),
         ]
 
@@ -173,6 +176,7 @@ class TestConceptDiscoveryResult:
                 className="Clinical Finding",
                 standardConcept="S",
                 code="123",
+                invalidReason=None,
             ),
             OMOPConcept(
                 id=67890,
@@ -182,6 +186,7 @@ class TestConceptDiscoveryResult:
                 className="Clinical Finding",
                 standardConcept="S",
                 code="456",
+                invalidReason=None,
             ),
         ]
 
@@ -203,6 +208,7 @@ class TestConceptDiscoveryResult:
                 className="Clinical Finding",
                 standardConcept="S",
                 code="123",
+                invalidReason=None,
             ),
             OMOPConcept(
                 id=2,
@@ -212,6 +218,7 @@ class TestConceptDiscoveryResult:
                 className="Clinical Finding",
                 standardConcept=None,
                 code="456",
+                invalidReason=None,
             ),
         ]
 
@@ -235,6 +242,8 @@ class TestCohortSQLRequest:
             outcome_concept_ids=[320128],
             pre_outcome_days=90,
             validate_sql=True,
+            project_id=None,
+            dataset_id=None,
         )
 
         assert len(request.exposure_concept_ids) == 2
@@ -247,6 +256,8 @@ class TestCohortSQLRequest:
         request = CohortSQLRequest(
             exposure_concept_ids=[201826],
             outcome_concept_ids=[320128],
+            pre_outcome_days=90,
+            validate_sql=True,
             project_id="my-project",
             dataset_id="omop_cdm",
         )
@@ -263,7 +274,10 @@ class TestQueryOMOPRequest:
         request = QueryOMOPRequest(
             concept_ids=[201826, 4046213],
             query_type="count",
+            domain="Condition",
             backend="bigquery",
+            execute=True,
+            limit=1000,
         )
 
         assert len(request.concept_ids) == 2
@@ -278,7 +292,10 @@ class TestQueryOMOPRequest:
             QueryOMOPRequest(
                 concept_ids=[201826],
                 query_type="invalid_type",
+                domain="Condition",
                 backend="bigquery",
+                execute=True,
+                limit=1000,
             )
 
 

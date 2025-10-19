@@ -101,6 +101,7 @@ class TestSQLDialectTranslation:
         is_valid, error = validate_sql("SELECT 1", "unsupported")
 
         assert is_valid is False
+        assert error is not None
         assert "Unsupported dialect" in error
 
     def test_format_sql(self):

@@ -66,6 +66,7 @@ class ConceptDiscoveryAgent:
             model=self.model,
             output_type=ConceptSearchResult,
             system_prompt=self._get_system_prompt(),
+            deps_type=ConceptSearchRequest,
         )
 
         # Register the discover_concepts tool
@@ -188,10 +189,10 @@ Always provide the concept_ids list for downstream SQL generation."""
             logger.info(
                 "find_concepts_success",
                 query=query,
-                concepts_found=len(result.data.concepts),
+                concepts_found=len(result.output.concepts),
             )
 
-            return ConceptSearchResult(**result.data.model_dump())
+            return ConceptSearchResult(**result.output.model_dump())
 
         except Exception as e:
             logger.error(
@@ -255,10 +256,10 @@ Provide reasoning for inclusions/exclusions."""
             logger.info(
                 "refine_concepts_success",
                 initial_count=len(concepts),
-                refined_count=len(result.data.concepts),
+                refined_count=len(result.output.concepts),
             )
 
-            return ConceptSearchResult(**result.data.model_dump())
+            return ConceptSearchResult(**result.output.model_dump())
 
         except Exception as e:
             logger.error(
