@@ -17,6 +17,8 @@ from omop_mcp.models import (
 )
 from omop_mcp.tools.athena import AthenaAPIClient
 from omop_mcp.tools.athena import discover_concepts as athena_discover_concepts
+from omop_mcp.tools.schema import get_all_tables_schema, get_table_schema
+from omop_mcp.tools.sql_validator import validate_sql_comprehensive
 
 # Configure structured logging
 structlog.configure(
@@ -405,6 +407,227 @@ async def generate_cohort_sql(
     except Exception as e:
         logger.error(
             "generate_cohort_sql_failed",
+            backend=backend,
+            error=str(e),
+            exc_info=True,
+        )
+        raise
+
+
+@mcp.tool()
+async def get_information_schema(
+    ctx: Context,
+    table_name: str | None = None,
+    backend: str = "bigquery",
+) -> dict[str, Any]:
+    """
+    Get OMOP database schema information.
+
+    This tool provides detailed schema information for OMOP CDM tables,
+    including column definitions, data types, and OMOP-specific descriptions.
+    Useful for understanding table structures before writing queries.
+
+    Args:
+        table_name: Specific OMOP table (e.g., 'condition_occurrence', 'person')
+        backend: Database backend to query ("bigquery", "snowflake", "duckdb")
+
+    Returns:
+        Dictionary with:
+        - table_name: Name of the table
+        - description: OMOP CDM description of the table
+        - is_omop_standard: Whether this is a standard OMOP table
+        - columns: List of column definitions with types and descriptions
+        - column_count: Total number of columns
+        - backend: Backend used for schema query
+
+    Example:
+        >>> # Get schema for condition_occurrence table
+        >>> schema = await get_information_schema(
+        ...     ctx,
+        ...     table_name="condition_occurrence",
+        ...     backend="bigquery"
+        ... )
+        >>> print(f"Table has {schema['column_count']} columns")
+        >>> for col in schema['columns']:
+        ...     print(f"{col['name']}: {col['type']} - {col['description']}")
+    """
+    logger.info(
+        "get_information_schema_called",
+        table_name=table_name,
+        backend=backend,
+    )
+
+    try:
+        if table_name:
+            # Get specific table schema
+            result = await get_table_schema(table_name, backend)
+        else:
+            # Get all tables schema
+            result = await get_all_tables_schema(backend, include_non_omop=False)
+
+        logger.info(
+            "get_information_schema_success",
+            table_name=table_name,
+            backend=backend,
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error(
+            "get_information_schema_failed",
+            table_name=table_name,
+            backend=backend,
+            error=str(e),
+            exc_info=True,
+        )
+        raise
+
+
+@mcp.tool()
+async def select_query(
+    ctx: Context,
+    sql: str,
+    validate: bool = True,
+    execute: bool = True,
+    backend: str = "bigquery",
+    limit: int = 1000,
+) -> dict[str, Any]:
+    """
+    Execute a SELECT query with security validation.
+
+    This tool allows direct SQL execution with comprehensive security checks:
+    - Only SELECT statements are allowed
+    - OMOP table allowlist validation (if enabled)
+    - PHI column blocking
+    - Cost estimation and limits
+    - Automatic row limiting
+
+    Args:
+        sql: SQL SELECT statement to execute
+        validate: Run validation before execution (default: True)
+        execute: Execute query or return SQL only (default: True)
+        backend: Database backend ("bigquery", "snowflake", "duckdb")
+        limit: Maximum rows to return (default: 1000)
+
+    Returns:
+        Dictionary with:
+        - sql: SQL query (with LIMIT applied if needed)
+        - results: Query results (if execute=True)
+        - row_count: Number of rows returned
+        - validation: Validation result
+        - estimated_cost_usd: Estimated cost (BigQuery only)
+        - estimated_bytes: Estimated bytes scanned
+        - backend: Backend used
+        - execution_time_ms: Query execution time
+
+    Example:
+        >>> # Count patients with diabetes
+        >>> result = await select_query(
+        ...     ctx,
+        ...     sql="SELECT COUNT(DISTINCT person_id) FROM condition_occurrence WHERE condition_concept_id = 201826",
+        ...     backend="bigquery",
+        ...     execute=True
+        ... )
+        >>> print(f"Found {result['results'][0]['patient_count']} patients")
+    """
+    logger.info(
+        "select_query_called",
+        sql_length=len(sql),
+        validate=validate,
+        execute=execute,
+        backend=backend,
+        limit=limit,
+    )
+
+    try:
+        import time
+
+        from omop_mcp.backends.registry import get_backend
+
+        # Validate SQL if requested
+        validation_result = None
+        if validate:
+            validation_result = await validate_sql_comprehensive(
+                sql, backend, limit, check_cost=True
+            )
+
+            if not validation_result.valid:
+                return {
+                    "sql": sql,
+                    "results": None,
+                    "row_count": None,
+                    "validation": validation_result.model_dump(),
+                    "estimated_cost_usd": validation_result.estimated_cost_usd,
+                    "estimated_bytes": validation_result.estimated_bytes,
+                    "backend": backend,
+                    "error": validation_result.error_message,
+                }
+
+        # Execute query if requested
+        results = None
+        row_count = None
+        execution_time_ms = None
+
+        if execute:
+            start_time = time.time()
+
+            try:
+                backend_impl = get_backend(backend)
+
+                # Apply row limit to SQL
+                sql_with_limit = sql
+                if "LIMIT" not in sql.upper():
+                    sql_with_limit = f"{sql.rstrip()}\nLIMIT {limit}"
+
+                # Execute query
+                results = await backend_impl.execute_query(sql_with_limit, limit)
+                row_count = len(results)
+
+                execution_time_ms = int((time.time() - start_time) * 1000)
+
+            except Exception as e:
+                logger.error("query_execution_failed", error=str(e))
+                return {
+                    "sql": sql,
+                    "results": None,
+                    "row_count": None,
+                    "validation": validation_result.model_dump() if validation_result else None,
+                    "estimated_cost_usd": (
+                        validation_result.estimated_cost_usd if validation_result else 0.0
+                    ),
+                    "estimated_bytes": (
+                        validation_result.estimated_bytes if validation_result else 0
+                    ),
+                    "backend": backend,
+                    "error": str(e),
+                }
+
+        logger.info(
+            "select_query_success",
+            sql_length=len(sql),
+            execute=execute,
+            row_count=row_count,
+            execution_time_ms=execution_time_ms,
+        )
+
+        return {
+            "sql": sql,
+            "results": results,
+            "row_count": row_count,
+            "validation": validation_result.model_dump() if validation_result else None,
+            "estimated_cost_usd": (
+                validation_result.estimated_cost_usd if validation_result else 0.0
+            ),
+            "estimated_bytes": validation_result.estimated_bytes if validation_result else 0,
+            "backend": backend,
+            "execution_time_ms": execution_time_ms,
+        }
+
+    except Exception as e:
+        logger.error(
+            "select_query_failed",
+            sql=sql[:100],
             backend=backend,
             error=str(e),
             exc_info=True,

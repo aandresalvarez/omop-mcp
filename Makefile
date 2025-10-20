@@ -20,7 +20,7 @@ PIP_AUDIT := $(VENV)/bin/pip-audit
 SAFETY := $(VENV)/bin/safety
 
 .PHONY: help venv install install-dev dev-tools format lint typecheck pyright pylint test test-cov \
-        http stdio run clean check check-all pre-commit pre-commit-install dev \
+        http stdio run clean check check-all pre-commit pre-commit-full pre-commit-install dev \
         security sql-lint sql-fix coverage audit
 
 # ============================================================================
@@ -47,7 +47,8 @@ help:
 	@echo "  make pyright         # Type-check with pyright"
 	@echo "  make check           # Run all checks (format + lint + typecheck + test)"
 	@echo "  make check-all       # Run ALL checks including pyright and pylint"
-	@echo "  make pre-commit      # Run pre-commit on all files"
+	@echo "  make pre-commit      # Run comprehensive pre-commit checks"
+	@echo "  make pre-commit-full # Run FULL pre-commit checks (includes pylint, security, SQL)"
 	@echo "  make pre-commit-install # Install pre-commit hooks"
 	@echo ""
 	@echo "Security & Quality:"
@@ -144,9 +145,48 @@ check-all: format lint pylint typecheck pyright security test
 	@echo "✅ ALL checks passed (including security, pylint, and pyright)!"
 
 pre-commit:
-	@echo "Running pre-commit on all files..."
+	@echo "Running comprehensive pre-commit checks..."
+	@echo "→ Code formatting..."
+	@$(BLACK) src/ tests/ || true
+	@$(RUFF) check src/ tests/ --fix || true
+	@echo "→ Linting with ruff..."
+	@$(RUFF) check src/ tests/
+	@echo "→ Type checking with mypy..."
+	@$(MYPY) src/
+	@echo "→ Type checking with pyright..."
+	@$(PYRIGHT) src/
+	@echo "→ Security scan with bandit..."
+	@$(BANDIT) -r src/ -ll -f screen || true
+	@echo "→ Running tests..."
+	@$(PYTEST) -v --maxfail=1
+	@echo "→ Pre-commit hooks..."
 	@$(VENV)/bin/pre-commit run --all-files
-	@echo "✅ Pre-commit checks complete"
+	@echo "✅ All pre-commit checks complete"
+
+pre-commit-full:
+	@echo "Running FULL pre-commit checks (comprehensive)..."
+	@echo "→ Code formatting..."
+	@$(BLACK) src/ tests/ || true
+	@$(RUFF) check src/ tests/ --fix || true
+	@echo "→ Linting with ruff..."
+	@$(RUFF) check src/ tests/
+	@echo "→ Linting with pylint..."
+	@$(PYLINT) src/omop_mcp --rcfile=.pylintrc || true
+	@echo "→ Type checking with mypy..."
+	@$(MYPY) src/
+	@echo "→ Type checking with pyright..."
+	@$(PYRIGHT) src/
+	@echo "→ Security scan with bandit..."
+	@$(BANDIT) -r src/ -ll -f screen || true
+	@echo "→ Vulnerability scan with pip-audit..."
+	@$(PIP_AUDIT) --require-hashes --disable-pip || $(PIP_AUDIT) || true
+	@echo "→ SQL linting..."
+	@$(SQLFLUFF) lint agents/qb/*.sql --dialect bigquery || true
+	@echo "→ Running tests..."
+	@$(PYTEST) -v --maxfail=1
+	@echo "→ Pre-commit hooks..."
+	@$(VENV)/bin/pre-commit run --all-files
+	@echo "✅ FULL pre-commit checks complete"
 
 pre-commit-install: venv
 	@echo "Installing pre-commit hooks..."

@@ -16,28 +16,28 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
           version: "latest"
-      
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      
+
       - name: Install dependencies
         run: uv sync --extra dev
-      
+
       - name: Run tests with coverage
         run: |
           source .venv/bin/activate
           pytest --cov=omop_mcp --cov-report=xml --cov-report=term
-      
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         if: matrix.python-version == '3.12'
@@ -51,32 +51,32 @@ jobs:
   lint:
     name: Code Quality
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-      
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      
+
       - name: Install dependencies
         run: uv sync --extra dev
-      
+
       - name: Format check
         run: |
           source .venv/bin/activate
           black --check src/ tests/
           ruff format --check src/ tests/
-      
+
       - name: Lint with ruff
         run: |
           source .venv/bin/activate
           ruff check src/ tests/
-      
+
       - name: Lint with pylint
         run: |
           source .venv/bin/activate
@@ -89,26 +89,26 @@ jobs:
   typecheck:
     name: Type Checking
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-      
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      
+
       - name: Install dependencies
         run: uv sync --extra dev
-      
+
       - name: Type check with mypy
         run: |
           source .venv/bin/activate
           mypy src/
-      
+
       - name: Type check with pyright
         run: |
           source .venv/bin/activate
@@ -121,33 +121,33 @@ jobs:
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-      
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      
+
       - name: Install dependencies
         run: uv sync --extra dev
-      
+
       - name: Security scan with bandit
         run: |
           source .venv/bin/activate
           bandit -r src/ -ll -f screen
         continue-on-error: true
-      
+
       - name: Vulnerability scan with pip-audit
         run: |
           source .venv/bin/activate
           pip-audit || true
         continue-on-error: true
-      
+
       - name: Dependency vulnerability scan with safety
         run: |
           source .venv/bin/activate
@@ -160,21 +160,21 @@ jobs:
   sql-quality:
     name: SQL Quality Checks
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
-      
+
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      
+
       - name: Install dependencies
         run: uv sync --extra dev
-      
+
       - name: Lint SQL with sqlfluff
         run: |
           source .venv/bin/activate
@@ -189,7 +189,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test, lint, typecheck, security, sql-quality]
     if: always()
-    
+
     steps:
       - name: Check results
         run: |

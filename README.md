@@ -414,6 +414,24 @@ await export_query_results(
 
 ### Installation
 
+#### Quick Install with UV Extras
+
+```bash
+# Local development (DuckDB only)
+uv pip install omop-mcp[duckdb]
+
+# Cloud analytics (BigQuery + Snowflake)
+uv pip install omop-mcp[cloud]
+
+# All backends
+uv pip install omop-mcp[all-backends]
+
+# Development with all tools
+uv pip install omop-mcp[dev,all-backends]
+```
+
+#### Traditional Installation
+
 ```bash
 # Install from PyPI (when published)
 pip install omop-mcp
@@ -426,7 +444,13 @@ uv sync
 
 ### Configuration
 
-Create a `.env` file or set environment variables:
+Copy `.env.example` to `.env` and customize for your environment:
+
+```bash
+cp .env.example .env
+```
+
+Or set environment variables directly:
 
 ```bash
 # Required: Database backend
@@ -539,8 +563,15 @@ BACKEND_TYPE=postgres uv run python -m omop_mcp.server
 |------|---------|------------------|---------|
 | `discover_concepts` | Search ATHENA for concepts | `query`, `domain`, `vocabulary`, `standard_only`, `limit` | `ConceptDiscoveryResult` |
 | `get_concept_relationships` | Explore concept hierarchies | `concept_id`, `relationship_id` | List of `ConceptRelationship` |
-| `query_by_concepts` | Execute analytical queries | `query_type`, `concept_ids`, `domain`, `backend`, `execute` | `QueryOMOPResult` |
+| `query_omop` | Execute analytical queries | `query_type`, `concept_ids`, `domain`, `backend`, `execute` | `QueryOMOPResult` |
 | `generate_cohort_sql` | Create temporal cohort queries | `exposure_ids`, `outcome_ids`, `time_window`, `dialect` | SQL string |
+
+### Direct SQL Tools (New! 🎉)
+
+| Tool | Purpose | Input Parameters | Returns |
+|------|---------|------------------|---------|
+| `get_information_schema` | Get database schema info | `table_name`, `backend` | Table/column definitions |
+| `select_query` | Execute direct SQL with validation | `sql`, `validate`, `execute`, `backend`, `limit` | Query results + metadata |
 
 ### Export Tools (New! 🎉)
 
@@ -581,6 +612,64 @@ BACKEND_TYPE=postgres uv run python -m omop_mcp.server
 | `cohort/sql` | Guide SQL generation | `exposure`, `outcome`, `time_window`, `dialect` | SQL generation template |
 | `analysis/discovery` | Guide concept discovery | `question`, `domains` | Systematic discovery workflow |
 | `query/multi-step` | Guide query execution | `concept_ids`, `domain` | Cost-aware execution guide |
+
+---
+
+## 📚 Documentation
+
+### Core Documentation
+
+- **[SQL Validation & Security](docs/sql-validation.md)** - Comprehensive security features, table allowlists, PHI protection
+- **[Execution & Caching Architecture](docs/execution-caching.md)** - Performance optimization, caching strategies, monitoring
+- **[API Reference](docs/api/tools.md)** - Complete tool documentation with examples
+
+### Integration Guides
+
+- **[Claude Desktop Integration](docs/integrations/claude-desktop.md)** - Complete setup guide for Claude Desktop
+- **[LibreChat + Ollama Integration](docs/integrations/librechat-ollama.md)** - Local deployment with LibreChat and Ollama
+- **[Generic MCP Client Guide](docs/integrations/generic-mcp-client.md)** - Integration with any MCP-compatible client
+
+### Configuration
+
+- **[Environment Configuration](.env.example)** - Complete configuration reference with examples
+- **[Comprehensive Configuration Guide](docs/configuration.md)** - Detailed setup for all environments, databases, and AI clients
+- **[UV Extras Installation](pyproject.toml)** - Backend-specific installation options
+
+---
+
+## 🔒 Security Features
+
+The OMOP MCP server implements comprehensive security measures to protect healthcare data:
+
+### SQL Safety Layer
+- **Only SELECT statements allowed** - Blocks all mutating operations (DELETE, UPDATE, DROP, etc.)
+- **OMOP table allowlist** - Restricts access to approved OMOP CDM tables only
+- **PHI column blocking** - Prevents access to sensitive source value columns
+- **Automatic row limiting** - Prevents excessive data retrieval
+- **Cost validation** - BigQuery dry-run validation with cost limits
+
+### Configuration Options
+```bash
+# Enable strict table validation
+STRICT_TABLE_VALIDATION=true
+
+# Block PHI columns
+OMOP_BLOCKED_COLUMNS=person_source_value,provider_source_value
+
+# Set cost limits
+MAX_COST_USD=1.0
+
+# Disable patient ID queries in production
+ALLOW_PATIENT_LIST=false
+```
+
+### Error Types
+- `SecurityViolationError` - Dangerous SQL operations detected
+- `TableNotAllowedError` - Non-allowlisted table accessed
+- `ColumnBlockedError` - Blocked PHI column accessed
+- `CostLimitExceededError` - Query cost exceeds limit
+
+See [SQL Validation Documentation](docs/sql-validation.md) for complete security details.
 
 ---
 

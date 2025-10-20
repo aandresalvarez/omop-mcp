@@ -27,21 +27,11 @@ dependencies = [
     # HTTP & Async
     "httpx>=0.27",
 
-    # BigQuery
-    "google-cloud-bigquery>=3.25.0",
-
     # SQL Dialect Translation
     "sqlglot>=25.0.0",
 
-    # Snowflake
-    "snowflake-connector-python>=3.12.0",
-
-    # DuckDB
+    # DuckDB (included in core for local development)
     "duckdb>=1.1.0",
-
-    # Postgres (future)
-    "psycopg[binary,pool]>=3.2",
-    "asyncpg>=0.29",
 
     # Logging & Utilities
     "structlog>=24.1",
@@ -86,6 +76,33 @@ dev = [
     # Development
     "ipython>=8.0",
     "types-aiofiles",
+]
+
+# Backend-specific extras
+bigquery = [
+    "google-cloud-bigquery>=3.25.0",
+]
+
+snowflake = [
+    "snowflake-connector-python>=3.12.0",
+]
+
+postgres = [
+    "psycopg[binary,pool]>=3.2",
+    "asyncpg>=0.29",
+]
+
+# Convenience groups
+local = [
+    "omop-mcp[duckdb]",
+]
+
+cloud = [
+    "omop-mcp[bigquery,snowflake]",
+]
+
+all-backends = [
+    "omop-mcp[bigquery,snowflake,postgres]",
 ]
 
 observability = [

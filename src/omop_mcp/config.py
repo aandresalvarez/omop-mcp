@@ -1,5 +1,6 @@
 """Configuration management using pydantic-settings."""
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -46,6 +47,37 @@ class OMOPConfig(BaseSettings):
     max_query_cost_usd: float = 1.0
     allow_patient_list: bool = False
     query_timeout_sec: int = 30
+
+    # SQL validation settings
+    strict_table_validation: bool = False
+    omop_allowed_tables: list[str] = Field(
+        default=[
+            "person",
+            "condition_occurrence",
+            "drug_exposure",
+            "procedure_occurrence",
+            "measurement",
+            "observation",
+            "visit_occurrence",
+            "death",
+            "location",
+            "care_site",
+            "provider",
+            "concept",
+            "vocabulary",
+            "concept_relationship",
+            "concept_ancestor",
+        ]
+    )
+    omop_blocked_columns: list[str] = Field(
+        default=[
+            "person_source_value",
+            "provider_source_value",
+            "location_source_value",
+            "care_site_source_value",
+        ]
+    )
+    phi_mode: bool = False
 
     # Agent settings
     max_concepts_per_query: int = 50
