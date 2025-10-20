@@ -22,6 +22,7 @@ class OMOPConfig(BaseSettings):
     bigquery_project_id: str | None = None
     bigquery_dataset_id: str | None = None
     bigquery_location: str = "US"
+    bigquery_credentials_path: str | None = None
 
     # Snowflake
     snowflake_account: str | None = None

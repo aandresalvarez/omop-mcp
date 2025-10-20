@@ -1,9 +1,11 @@
 """BigQuery backend implementation."""
 
+import os
 from typing import Any
 
 import structlog
 from google.api_core.exceptions import GoogleAPIError
+from google.auth import default as google_auth_default
 from google.cloud import bigquery
 
 from omop_mcp.backends.base import Backend, CohortQueryParts
@@ -23,11 +25,52 @@ class BigQueryBackend(Backend):
         """Initialize BigQuery backend."""
         self.project_id = config.bigquery_project_id
         self.dataset_id = config.bigquery_dataset_id
+        self.credentials_path = config.bigquery_credentials_path
 
         if not self.project_id or not self.dataset_id:
             logger.warning(
                 "bigquery_not_configured", msg="BigQuery project_id or dataset_id not set"
             )
+
+    def _get_client(self) -> "bigquery.Client":
+        """
+        Get authenticated BigQuery client using service account or ADC.
+
+        Authentication priority:
+        1. Service account JSON file (if BIGQUERY_CREDENTIALS_PATH is set and file exists)
+        2. Application Default Credentials (ADC) - user credentials, metadata service, etc.
+
+        Returns:
+            Authenticated BigQuery client
+
+        Raises:
+            ValueError: If authentication fails or project ID is not available
+        """
+        if self.credentials_path and os.path.exists(self.credentials_path):
+            # Use service account credentials
+            logger.info("using_service_account", credentials_path=self.credentials_path)
+            return bigquery.Client.from_service_account_json(  # type: ignore[no-any-return]
+                self.credentials_path, project=self.project_id
+            )
+        # Use Application Default Credentials (ADC)
+        logger.info("using_adc", project_id=self.project_id)
+        try:
+            # Verify ADC is available and get credentials
+            _, detected_project = google_auth_default()
+
+            # Use detected project if config project is not set
+            project_id = self.project_id or detected_project
+            if not project_id:
+                raise ValueError("No project ID available from config or ADC")
+
+            logger.info("adc_success", project_id=project_id, detected_project=detected_project)
+            return bigquery.Client(project=project_id)  # type: ignore[no-any-return]
+        except Exception as e:
+            logger.error("adc_auth_failed", error=str(e))
+            raise ValueError(
+                "Failed to authenticate with Application Default Credentials. "
+                "Run 'gcloud auth application-default login' or set BIGQUERY_CREDENTIALS_PATH"
+            ) from e
 
     async def build_cohort_sql(
         self,
@@ -83,7 +126,7 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY person_id ORDER BY exposure_date) = 1"""
         logger.info("validating_sql", backend="bigquery")
 
         try:
-            client = bigquery.Client(project=self.project_id)
+            client = self._get_client()
 
             job_config = bigquery.QueryJobConfig(dry_run=True, use_query_cache=False)
 
@@ -128,7 +171,7 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY person_id ORDER BY exposure_date) = 1"""
         logger.info("executing_query", backend="bigquery", limit=limit)
 
         try:
-            client = bigquery.Client(project=self.project_id)
+            client = self._get_client()
             query_job = client.query(sql, timeout=config.query_timeout_sec)
             results = query_job.result()
 

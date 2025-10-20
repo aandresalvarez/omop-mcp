@@ -161,6 +161,93 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/omop-mcp-key.json
 export GOOGLE_CLOUD_PROJECT=your-project-id
 ```
 
+#### Authentication Methods
+
+The OMOP MCP server supports multiple authentication methods for BigQuery access:
+
+##### Method 1: Service Account (Recommended for Production)
+
+**Configuration**:
+```bash
+# .env file
+BIGQUERY_PROJECT_ID=your-project-id
+BIGQUERY_DATASET_ID=omop_cdm
+BIGQUERY_CREDENTIALS_PATH=/path/to/service-account.json
+```
+
+**Setup**:
+```bash
+# Create service account key
+gcloud iam service-accounts keys create omop-mcp-key.json \
+    --iam-account=omop-mcp-server@your-project-id.iam.gserviceaccount.com
+
+# Set environment variable
+export BIGQUERY_CREDENTIALS_PATH=/path/to/omop-mcp-key.json
+```
+
+**Advantages**:
+- Explicit credential management
+- Fine-grained permissions
+- Audit trail
+- Production-ready
+
+##### Method 2: Application Default Credentials (ADC)
+
+**Configuration**:
+```bash
+# .env file - leave credentials path empty
+BIGQUERY_PROJECT_ID=your-project-id
+BIGQUERY_DATASET_ID=omop_cdm
+BIGQUERY_CREDENTIALS_PATH=  # Empty to use ADC
+```
+
+**ADC Options**:
+
+1. **User Credentials (Development)**:
+```bash
+# Authenticate with your user account
+gcloud auth application-default login
+```
+
+2. **Service Account via Environment Variable**:
+```bash
+# Set the standard Google Cloud environment variable
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+```
+
+3. **Metadata Service (GCP Environments)**:
+```bash
+# Automatically available in:
+# - Cloud Run
+# - Compute Engine
+# - App Engine
+# - Cloud Functions
+# - Kubernetes Engine (with Workload Identity)
+```
+
+4. **Workload Identity (Kubernetes)**:
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: omop-mcp
+  annotations:
+    iam.gke.io/gcp-service-account: omop-mcp-server@your-project-id.iam.gserviceaccount.com
+```
+
+**ADC Advantages**:
+- Simplified deployment
+- Automatic credential rotation
+- Cloud-native integration
+- No credential file management
+
+**Authentication Priority**:
+1. Service account JSON file (if `BIGQUERY_CREDENTIALS_PATH` is set and file exists)
+2. Application Default Credentials (ADC)
+   - `GOOGLE_APPLICATION_CREDENTIALS` environment variable
+   - Metadata service (GCP environments)
+   - User credentials (`gcloud auth application-default login`)
+
 **Advantages**:
 - Handles massive datasets
 - Built-in security features

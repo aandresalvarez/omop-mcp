@@ -94,15 +94,19 @@ postgres = [
 
 # Convenience groups
 local = [
-    "omop-mcp[duckdb]",
+    "duckdb>=1.1.0",
 ]
 
 cloud = [
-    "omop-mcp[bigquery,snowflake]",
+    "google-cloud-bigquery>=3.25.0",
+    "snowflake-connector-python>=3.12.0",
 ]
 
 all-backends = [
-    "omop-mcp[bigquery,snowflake,postgres]",
+    "google-cloud-bigquery>=3.25.0",
+    "snowflake-connector-python>=3.12.0",
+    "psycopg[binary,pool]>=3.2",
+    "asyncpg>=0.29",
 ]
 
 observability = [

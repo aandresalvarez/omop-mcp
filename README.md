@@ -461,6 +461,22 @@ BIGQUERY_PROJECT_ID=your-gcp-project
 BIGQUERY_DATASET_ID=omop_cdm
 BIGQUERY_CREDENTIALS_PATH=/path/to/service-account.json
 
+# Alternative: Use Application Default Credentials (ADC)
+# BIGQUERY_CREDENTIALS_PATH=  # Leave empty to use ADC
+#
+# ADC Authentication Methods:
+# 1. User credentials (development):
+#    gcloud auth application-default login
+#
+# 2. Service account via environment variable:
+#    export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+#
+# 3. Metadata service (GCP environments - Cloud Run, Compute Engine, etc.):
+#    Automatically available - no additional setup needed
+#
+# 4. Workload Identity (Kubernetes):
+#    Configured via service account annotations
+
 # For Snowflake
 SNOWFLAKE_ACCOUNT=your-account.snowflakecomputing.com
 SNOWFLAKE_USER=your_username
@@ -484,6 +500,44 @@ OAUTH_AUDIENCE=omop-mcp-api
 ```
 
 ### Running the Server
+
+#### Authentication Methods
+
+The OMOP MCP server supports multiple authentication methods for BigQuery access:
+
+**Method 1: Service Account (Recommended for Production)**
+```bash
+# Download service account key
+gcloud iam service-accounts keys create omop-mcp-key.json \
+    --iam-account=omop-mcp-server@your-project-id.iam.gserviceaccount.com
+
+# Set environment variable
+BIGQUERY_CREDENTIALS_PATH=/path/to/omop-mcp-key.json
+```
+
+**Method 2: Application Default Credentials (ADC)**
+```bash
+# Option 1: User credentials (development)
+gcloud auth application-default login
+
+# Option 2: Service account via environment variable
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+
+# Option 3: Metadata service (GCP environments)
+# Automatically available in Cloud Run, Compute Engine, etc.
+
+# Leave credentials path empty to use ADC
+BIGQUERY_CREDENTIALS_PATH=
+```
+
+**Authentication Priority:**
+1. Service account JSON file (if `BIGQUERY_CREDENTIALS_PATH` is set and file exists)
+2. Application Default Credentials (ADC)
+   - `GOOGLE_APPLICATION_CREDENTIALS` environment variable
+   - Metadata service (GCP environments)
+   - User credentials (`gcloud auth application-default login`)
+
+#### Start the Server
 
 #### Option 1: As MCP Server (for Claude Desktop, etc.)
 
@@ -1330,8 +1384,9 @@ if validation.estimated_cost_usd < 1.0:
 2. **Set cost limits**: Default is $1, adjust based on your budget
 3. **Disable PHI mode**: Set `PHI_MODE=false` to block patient ID queries
 4. **Use service accounts**: For BigQuery, use dedicated service account with read-only access
-5. **Enable audit logging**: All queries are logged with structlog
-6. **Set query timeouts**: Default 30s, adjust as needed
+5. **Prefer ADC in cloud environments**: Use Application Default Credentials for Cloud Run, Compute Engine, etc.
+6. **Enable audit logging**: All queries are logged with structlog
+7. **Set query timeouts**: Default 30s, adjust as needed
 
 ---
 
